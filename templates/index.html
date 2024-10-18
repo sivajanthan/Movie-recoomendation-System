@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Recommendation System</title>
+    <style>
+        body {
+            background-color: #dee1e9;
+            font-family: 'Poppins', sans-serif;
+            color: white;
+            margin: 0;
+            padding: 0;
+            background-image: url('../static/movie5.png');
+            background-size: cover; /* Ensures the image covers the entire background */
+            background-position: center; /* Centers the image */
+            background-repeat: no-repeat; /* Avoids image repetition */
+            background-attachment: fixed; 
+            color: #04043b; 
+        }
+        h1 {
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #fefefe;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+        form {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        input[type="text"] {
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 300px;
+        }
+        input[type="submit"] {
+            padding: 10px 15px;
+            background-color: #2e55c1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #218838;
+        }
+        .recommendations, .searched-movie, .search-history, .user-based-recommendations, .content-based-recommendations, .additional-content-recommendations {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            color: white;
+            
+        }
+          
+        
+        .movie-container {
+    display: flex;
+    flex-wrap: wrap; /* Allows items to wrap to the next line */
+    justify-content: center; /* Center the items */
+}
+
+        .movie-card, .searched-movie-card {
+            margin: 10px; /* Space between cards */
+    padding: 15px;
+    border: 5px solid #531313;
+    border-radius: 16px;
+    background: rgb(62, 62, 63);
+    width: 200px; /* Set a fixed width for each card */
+    text-align: center; /* Center text inside each card */
+        }
+        .movie-card:hover, .searched-movie-card:hover {
+            transform: scale(1.05);
+        }
+        .movie-card span, .searched-movie-card span {
+            color: black;
+            font-weight: bold;
+            transition: color 0.2s ease-in-out;
+        }
+        .movie-card:hover span, .searched-movie-card:hover span {
+            color: #28a745;
+        }
+        #suggestions {
+            border: 1px solid #141313;
+            position: absolute;
+            background: white;
+            z-index: 1000;
+            width: 300px;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            margin-top: 5px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            color: #0d0e10;
+        }
+        #suggestions div {
+            padding: 8px;
+            cursor: pointer;
+        }
+        #suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+        #loading {
+            display: none;
+            text-align: center;
+            color: #f3f4f6;
+            margin-top: 20px;
+            font-size: 20px;
+
+        }
+        .movie-title {
+            text-align: center;
+            font-size: 1.5em;
+            margin-top: 20px;
+            color: #070223; /* Styling for the movie title */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Movie Recommendation System</h1>
+        <br><br><br>
+        <!-- <div class="movie-title" id="movie-title">Selected Movie: None</div>  -->
+        <form id="recommendation-form" aria-labelledby="recommendation-form">
+            <input type="text" id="user_id" name="user_id" placeholder="User ID (required)" required aria-required="true">
+            <div style="position: relative;">
+                <input type="text" id="movie_title" name="movie_title" placeholder="Movie Title (optional)" aria-label="Movie Title">
+                <div id="suggestions" aria-live="polite"></div>
+            </div>
+            <input type="submit" value="Get Recommendations" aria-label="Get Recommendations">
+        </form>
+        <div id="loading">Loading...</div>
+        <div class="searched-movie"></div>
+        <div class="user-based-recommendations"></div>
+        <div class="content-based-recommendations"></div>
+        <div class="additional-content-recommendations"></div>
+        <div class="search-history"></div>
+    </div>
+
+    <script>
+        document.getElementById('movie_title').addEventListener('input', function() {
+            const query = this.value;
+            const suggestionsDiv = document.getElementById('suggestions');
+            const loadingIndicator = document.getElementById('loading');
+
+            if (query.length > 0) {
+                loadingIndicator.style.display = 'block';
+                const startTime = Date.now();
+
+                fetch(`/autocomplete?query=${query}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        loadingIndicator.style.display = 'none';
+                        const timeTaken = Date.now() - startTime;
+                        console.log(`Search time: ${timeTaken} ms`);
+
+                        suggestionsDiv.innerHTML = '';
+                        data.forEach(title => {
+                            const div = document.createElement('div');
+                            div.textContent = title;
+                            div.onclick = () => {
+                                document.getElementById('movie_title').value = title;
+                                document.getElementById('movie-title').textContent = `Selected Movie: ${title}`; // Set selected movie title
+                                suggestionsDiv.innerHTML = '';
+                                suggestionsDiv.style.display = 'none';
+                            };
+                            suggestionsDiv.appendChild(div);
+                        });
+                        suggestionsDiv.style.display = data.length > 0 ? 'block' : 'none';
+                    });
+            } else {
+                suggestionsDiv.style.display = 'none';
+                loadingIndicator.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', function(event) {
+            const suggestionsDiv = document.getElementById('suggestions');
+            if (!suggestionsDiv.contains(event.target) && event.target.id !== 'movie_title') {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+
+        document.getElementById('recommendation-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const userId = document.getElementById('user_id').value;
+            const movieTitle = document.getElementById('movie_title').value;
+            const loadingIndicator = document.getElementById('loading');
+
+            loadingIndicator.style.display = 'block';
+            const startTime = Date.now();
+            
+            fetch('/recommend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ user_id: userId, movie_title: movieTitle })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.querySelector('.searched-movie').innerHTML = '';
+                document.querySelector('.user-based-recommendations').innerHTML = '';
+                document.querySelector('.content-based-recommendations').innerHTML = '';
+                document.querySelector('.additional-content-recommendations').innerHTML = '';
+                document.querySelector('.search-history').innerHTML = '';
+
+                // Display searched movie
+                if (data.searched_movie.title) {
+                    document.querySelector('.searched-movie').innerHTML = `<div class="searched-movie-card">Searched Movie: <strong>${data.searched_movie.title}</strong></div>`;
+                }
+
+                // Display user-based recommendations
+                if (data.user_based.length > 0) {
+                    let userBasedHTML = '<div style="text-align: center; margin-bottom: 20px;  "><h3 style="color:#f0f0f0;font-size: 24px;">User-Based Recommendations:</h3></div>'; // Centered heading
+                    // Create a container for user-based movie cards
+                    userBasedHTML += '<div class="movie-container" style="display: flex; flex-wrap: wrap; justify-content: center;">'; // Center the cards
+
+                    data.user_based.forEach(movie => {
+                        userBasedHTML += `<div class="movie-card">${movie}</div>`;
+                    });
+
+                    userBasedHTML += '</div>'; // Close the movie cards container
+                    document.querySelector('.user-based-recommendations').innerHTML = userBasedHTML;
+                }
+
+                // Display content-based recommendations
+                if (data.content_based.length > 0) {
+                    let contentBasedHTML = '<div style="text-align: center; margin-bottom: 20px;"><h3 style="color:#f0f0f0; font-size: 24px;">Content-Based Recommendations:</h3></div>'; // Centered heading
+                    // Create a container for content-based movie cards
+                    contentBasedHTML += '<div class="movie-container" style="display: flex; flex-wrap: wrap; justify-content: center;">'; // Center the cards
+
+                    data.content_based.forEach(movie => {
+                        contentBasedHTML += `<div class="movie-card">${movie}</div>`;
+                    });
+
+                    contentBasedHTML += '</div>'; // Close the movie cards container
+                    document.querySelector('.content-based-recommendations').innerHTML = contentBasedHTML;
+                }
+
+                // Display additional content-based recommendations from search history
+                if (data.additional_content_based.length > 0) {
+                    let additionalHTML = '<div style="text-align: center; margin-bottom: 20px;"><h3 style="color:#f0f0f0; font-size: 24px;">Additional Content-Based Recommendations from Search History:</h3></div>'; // Centered heading
+                    // Create a container for additional content-based movie cards
+                    additionalHTML += '<div class="movie-container" style="display: flex; flex-wrap: wrap; justify-content: center;">'; // Center the cards
+
+                    data.additional_content_based.forEach(movie => {
+                        additionalHTML += `<div class="movie-card">${movie}</div>`;
+                    });
+
+                    additionalHTML += '</div>'; // Close the movie cards container
+                    document.querySelector('.additional-content-recommendations').innerHTML = additionalHTML;
+                }
+
+                // Display search history
+                if (data.search_history.length > 0) {
+                    let historyHTML = '<div style="text-align: center; margin-bottom: 20px;"><h3 style="color:#f0f0f0; font-size: 24px;">Search History:</h3></div>'; // Centered heading
+                    // Create a container for search history movie cards
+                    historyHTML += '<div class="movie-container" style="display: flex; flex-wrap: wrap; justify-content: center;">'; // Center the cards
+
+                    data.search_history.forEach(movie => {
+                        historyHTML += `<div class="movie-card">${movie}</div>`;
+                    });
+
+                    historyHTML += '</div>'; // Close the movie cards container
+                    document.querySelector('.search-history').innerHTML = historyHTML;
+                }
+
+
+                loadingIndicator.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
